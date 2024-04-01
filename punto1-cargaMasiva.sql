@@ -155,5 +155,3 @@ $$ LANGUAGE plpgsql;
 --------------------- PRINCIPAL -------------------------
 -- Ejecutar la función con la cantidad de modelos a crear
 SELECT cargaMasiva(1000);
-
-	

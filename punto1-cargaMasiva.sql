@@ -22,19 +22,42 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+-- Genera fechas Aleatorias dentro de un rango dado
+CREATE OR REPLACE FUNCTION generarFechaAleatoria(inicio interval, fin interval) RETURNS date AS $$
+DECLARE
+    fecha date;
+BEGIN
+    -- Generar una fecha aleatoria dentro del rango especificado
+    fecha := CURRENT_DATE - interval '1' year * floor(random() * (EXTRACT(YEAR FROM CURRENT_DATE) - EXTRACT(YEAR FROM CURRENT_DATE - inicio) + 1)) - interval '1' month * floor(random() * (EXTRACT(MONTH FROM CURRENT_DATE) + 1));
+    
+    RETURN fecha;
+END;
+$$ LANGUAGE plpgsql;
+
 -- INSERTA EL TRABAJADOR REPARACION
 CREATE OR REPLACE FUNCTION insertarTrabajadorReparacion(idAvion integer) RETURNS VOID AS $$
 DECLARE
     dniTrabajador integer;
-	tipofalla_id integer;
+    tipofalla_id integer;
+    fechaInicioReparacion date;
+    fechaFinReparacion date;
 BEGIN
     -- Seleccionar un DNI de trabajador aleatorio
     dniTrabajador := seleccionarDNITrabajadorAleatorio();
     tipofalla_id := seleccionarIdFalla();
 
-	-- Insertar en la tabla "trabajadorReparacion"
+    -- Generar fechas aleatorias para la reparación
+    fechaInicioReparacion := generarFechaAleatoria('5 years', '0 months'); -- no más de 5 años atrás
+    fechaFinReparacion := generarFechaAleatoria('1 month', '0 months'); -- entre el mes actual y el mes anterior
+    
+    -- Asegurar que la fecha de inicio no sea mayor que la fecha de fin
+    IF fechaInicioReparacion > fechaFinReparacion THEN
+        fechaInicioReparacion := fechaFinReparacion - interval '1 day';
+    END IF;
+
+    -- Insertar en la tabla "trabajadorReparacion"
     INSERT INTO "trabajadorReparacion" ("nroAvion", "dniTrabajador", "fechaInicioReparacion", "fechaFinReparacion", "tipoFallaReparada")
-    VALUES (idAvion, dniTrabajador, CURRENT_DATE, CURRENT_DATE, tipofalla_id);
+
 END;
 $$ LANGUAGE plpgsql;
 
@@ -85,6 +108,7 @@ BEGIN
 		idAvion := obtenerNuevoIDAvion();
         -- inserta el avion asociado al modelo
 		INSERT INTO avion VALUES(idAvion, idModelo, anio, horasVuelo);
+		 -- se usa el comando PERFORM para insertar en la tabla trabajadorReparacion sin necesidad de devolver algo
 		PERFORM insertarTrabajadorReparacion(idAvion);
     END LOOP;
     
@@ -125,6 +149,7 @@ DECLARE
 BEGIN
 	-- capacidad aleatoria mayor o igual a 1000
     capacidad := FLOOR(RANDOM() * 3000) + 1000;
+    -- capacidad unica para CADA MODELO DE AVION
     RETURN capacidad;
 END;
 $$ LANGUAGE plpgsql;
